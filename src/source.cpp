@@ -5,14 +5,14 @@
 #include <stdlib.h>
 #include <cmath>
 
-#define R 6378000.0
-#define D 200000.0
-#define GM 398600.5
-#define N 8102
+//#define R 6378000.0
+//#define D 200000.0
+//#define N 8102
 
-// #define N 160002
-// #define D 50000.0
-// #define R 6378000.0
+#define GM 398600.5
+#define N 160002
+#define D 50000.0
+#define R 6378000.0
 // Homola_MPI.cpp
 
 using std::cos;
@@ -21,7 +21,6 @@ using std::sqrt;
 
 int main(int argc, char** argv)
 {
-    //printf("blablabla\n");
     int nprocs = 0;
     int myRank = 0;
     // Initialize MPI environment
@@ -69,7 +68,7 @@ int main(int argc, char** argv)
         //printf("Data reading started\n");
         FILE* file = nullptr;
         // BL-160002,dat
-        file = fopen("BL-8102.dat", "r");
+        file = fopen("BL-160002.dat", "r");
         if (file == nullptr)
         {
             delete[] B;
@@ -206,8 +205,6 @@ int main(int argc, char** argv)
             }
         }
     }
-
-    
 
     //########## BCGS linear solver ##########//
 
