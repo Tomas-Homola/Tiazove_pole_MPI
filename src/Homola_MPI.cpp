@@ -7,9 +7,11 @@
 
 //#define R 6378000.0
 //#define D 200000.0
-//#define N 8102
-
 #define GM 398600.5
+//#define N 8102
+//#define N 902
+#define EPSILON 0.000000000001
+
 #define N 160002
 #define D 50000.0
 #define R 6378000.0
@@ -28,29 +30,29 @@ int main(int argc, char** argv)
     MPI_Comm_size(MPI_COMM_WORLD, &nprocs); // get num of processes
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank); // assign ranks
 
-    double* B = new double[N] {0.0};
-    double* L = new double[N] {0.0};
+    double* B = new double[N] {};
+    double* L = new double[N] {};
     double Brad = 0.0, Lrad = 0.0, H = 0.0, u2n2 = 0.0;
     double temp = 0.0;
 
     // suradnice bodov X_i
-    double* X_x  = new double[N] {0.0};
-    double* X_y  = new double[N] {0.0};
-    double* X_z  = new double[N] {0.0};
+    double* X_x  = new double[N] {};
+    double* X_y  = new double[N] {};
+    double* X_z  = new double[N] {};
     double xNorm = 0.0;
     
     // suradnice bodov s_j
-    double* s_x = new double[N] {0.0};
-    double* s_y = new double[N] {0.0};
-    double* s_z = new double[N] {0.0};
+    double* s_x = new double[N] {};
+    double* s_y = new double[N] {};
+    double* s_z = new double[N] {};
     
     // suradnicce normal v x_i
-    double* n_x = new double[N] {0.0};
-    double* n_y = new double[N] {0.0};
-    double* n_z = new double[N] {0.0};
+    double* n_x = new double[N] {};
+    double* n_y = new double[N] {};
+    double* n_z = new double[N] {};
     
     // g vektor
-    double* g = new double[N] {0.0};
+    double* g = new double[N] {};
 
     // r vector
     double r_x = 0.0;
@@ -91,7 +93,8 @@ int main(int argc, char** argv)
         for (int i = 0; i < N; i++)
         {
             int result = fscanf(file, "%lf %lf %lf %lf %lf", &B[i], &L[i], &H, &g[i], &u2n2);
-            g[i] = -g[i] * 0.00001;
+            //g[i] = -g[i] * 0.00001;
+            g[i] = -GM / R;
 
             //g[i] = u2n2;
             Brad = B[i] * M_PI / 180.0;
@@ -102,10 +105,18 @@ int main(int argc, char** argv)
             X_y[i] = (R + H) * cos(Brad) * sin(Lrad);
             X_z[i] = (R + H) * sin(Brad);
 
+            //X_x[i] = R * cos(Brad) * cos(Lrad);
+            //X_y[i] = R * cos(Brad) * sin(Lrad);
+            //X_z[i] = R * sin(Brad);            
+
             // pridat (R + H -D)
             s_x[i] = (R + H -D) * cos(Brad) * cos(Lrad);
             s_y[i] = (R + H -D) * cos(Brad) * sin(Lrad);
             s_z[i] = (R + H -D) * sin(Brad);
+
+            //s_x[i] = (R - D) * cos(Brad) * cos(Lrad);
+            //s_y[i] = (R - D) * cos(Brad) * sin(Lrad);
+            //s_z[i] = (R - D) * sin(Brad);
 
             xNorm = sqrt(X_x[i] * X_x[i] + X_y[i] * X_y[i] + X_z[i] * X_z[i]);
             n_x[i] = -X_x[i] / xNorm;
@@ -145,7 +156,7 @@ int main(int argc, char** argv)
         printf("P%02d-> nlocal: %d\n", myRank, nlocal);
 
     // vytvorenie matice systemu rovnic
-    double* Alocal = new double[nlocal * N] {0.0};
+    double* Alocal = new double[nlocal * N] {};
     int ij = -1;
     int iGlobal = -1;
 
@@ -170,7 +181,7 @@ int main(int argc, char** argv)
                 // dot product of vector r and normal n_i
                 Kij = r_x * n_x[iGlobal] + r_y * n_y[iGlobal] + r_z * n_z[iGlobal];
                 //if (i == j && i < 10)
-                //    printf("Kij: %.4lf\n", Kij);
+                    //printf("Kij: %.4lf\n", Kij);
 
                 // compute 
                 ij = i * N + j;
@@ -208,15 +219,15 @@ int main(int argc, char** argv)
 
     //########## BCGS linear solver ##########//
 
-    double* sol = new double[nlocal * nprocs]; // [nlocal * nprocs]; vektor x^0 -> na ukladanie riesenia systemu
-    double* r_hat = new double[nlocal * nprocs]; // [nlocal * nprocs]; vektor \tilde{r} = b - A.x^0;
-    double* r = new double[nlocal * nprocs]; // [nlocal * nprocs]; vektor pre rezidua
-    double* p = new double[nlocal * nprocs]; // [nlocal * nprocs]; pomocny vektor na update riesenia
-    double* v = new double[nlocal * nprocs]; // [nlocal * nprocs]; pomocny vektor na update riesenia
-    double* vlocal = new double[nlocal] {0.0}; // [nlocal]; local vektor v na parcialne vysledky, potom MPI_Allgather do v
-    double* s = new double[nlocal * nprocs]; // [nlocal * nprocs]; pomocny vektor na update riesenia
-    double* t = new double[nlocal * nprocs]; // [nlocal * nprocs]; pomocny vektor na update riesenia
-    double* tlocal = new double[nlocal]{0.0}; // [nlocal]; local vektor t na parcialne vysledky, potom MPI_Allgather do t
+    double* sol = new double[nlocal * nprocs] {}; // [nlocal * nprocs]; vektor x^0 -> na ukladanie riesenia systemu
+    double* r_hat = new double[nlocal * nprocs] {}; // [nlocal * nprocs]; vektor \tilde{r} = b - A.x^0;
+    double* r = new double[nlocal * nprocs] {}; // [nlocal * nprocs]; vektor pre rezidua
+    double* p = new double[nlocal * nprocs] {}; // [nlocal * nprocs]; pomocny vektor na update riesenia
+    double* v = new double[nlocal * nprocs] {}; // [nlocal * nprocs]; pomocny vektor na update riesenia
+    double* vlocal = new double[nlocal] {}; // [nlocal]; local vektor v na parcialne vysledky, potom MPI_Allgather do v
+    double* s = new double[nlocal * nprocs] {}; // [nlocal * nprocs]; pomocny vektor na update riesenia
+    double* t = new double[nlocal * nprocs] {}; // [nlocal * nprocs]; pomocny vektor na update riesenia
+    double* tlocal = new double[nlocal] {}; // [nlocal]; local vektor t na parcialne vysledky, potom MPI_Allgather do t
 
     double beta = 0.0;
     double rhoNew = 1.0;
@@ -228,7 +239,7 @@ int main(int argc, char** argv)
     double tempDot2 = 0.0;
     double sNorm = 0.0;
 
-    int MAX_ITER = 500;
+    int MAX_ITER = 1000;
     double TOL = 1.0E-6;
     int iter = 1;
 
@@ -275,8 +286,8 @@ int main(int argc, char** argv)
         }
         else
         {
-        beta = (rhoNew / rhoOld) * (alpha / omega);
-        for (int i = 0; i < N; i++) // update vector p^(i)
+            beta = (rhoNew / rhoOld) * (alpha / omega);
+            for (int i = 0; i < N; i++) // update vector p^(i)
             p[i] = r[i] + beta * (p[i] - omega * v[i]);
         }
 
@@ -333,7 +344,7 @@ int main(int argc, char** argv)
                 sol[i] = sol[i] + alpha * p[i];
 
             if (myRank == 0)
-                printf("BCGS stop:   ||s||(= %.10lf) is small enough, iter: %3d\n", sNorm, iter);
+                printf("BCGS stop:   ||s||(= %.10lf) is small enough, iter: %3d\n", sNorm, iter); 
 
             break;
         }
@@ -481,7 +492,7 @@ int main(int argc, char** argv)
     if (myRank == 0)
     {
         FILE* file = nullptr;
-        file = fopen("outCorrect_MPI.dat", "w");
+        file = fopen("out_Homola_MPI.dat", "w");
         if (file == nullptr)
         {
             delete[] B;
